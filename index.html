@@ -1,0 +1,107 @@
+// Remplacez la partie du script par celle-ci, le reste du code reste identique
+<script>
+    let attemptsLeft = 3;
+    const MAX_WINNERS_PER_HOUR = 2;
+    let hourlyWinners = new Map(); // Pour stocker les gagnants par heure
+    let winningTimes = new Map(); // Pour stocker les moments de victoire prédéfinis
+
+    const symbols = ['🍸', '🍶', '🍰'];
+    const prizes = {
+        '🍸🍸🍸': "🎉 JACKPOT! Free cocktail!",
+        '🍶🍶🍶': "🎉 JACKPOT! Free sake!",
+        '🍰🍰🍰': "🎉 JACKPOT! Free dessert!"
+    };
+
+    function generateWinningTimes(hour) {
+        // Générer deux moments aléatoires dans l'heure
+        const times = [];
+        const hourStart = new Date().setHours(hour, 0, 0, 0);
+        
+        // Premier moment aléatoire dans les 30 premières minutes
+        const firstWin = hourStart + Math.floor(Math.random() * 30 * 60 * 1000);
+        times.push(firstWin);
+        
+        // Deuxième moment aléatoire dans les 30 dernières minutes
+        const secondWin = hourStart + (30 * 60 * 1000) + Math.floor(Math.random() * 30 * 60 * 1000);
+        times.push(secondWin);
+        
+        return times.sort((a, b) => a - b); // Trier les temps dans l'ordre
+    }
+
+    function canWinNow() {
+        const currentHour = new Date().getHours();
+        const currentTime = new Date().getTime();
+        const currentWinners = hourlyWinners.get(currentHour) || 0;
+
+        // Si nous n'avons pas encore généré les temps gagnants pour cette heure
+        if (!winningTimes.has(currentHour)) {
+            winningTimes.set(currentHour, generateWinningTimes(currentHour));
+        }
+
+        const winTimes = winningTimes.get(currentHour);
+        
+        // Vérifier si nous sommes dans une fenêtre de temps gagnante (±30 secondes)
+        const timeWindow = 30 * 1000; // 30 secondes de fenêtre
+        return winTimes.some((winTime, index) => {
+            return currentTime >= winTime - timeWindow && 
+                   currentTime <= winTime + timeWindow && 
+                   currentWinners === index;
+        });
+    }
+
+    function finishSpin() {
+        const finalSymbols = [
+            getRandomSymbol(),
+            getRandomSymbol(),
+            getRandomSymbol()
+        ];
+        
+        elements.slot1.textContent = finalSymbols[0];
+        elements.slot2.textContent = finalSymbols[1];
+        elements.slot3.textContent = finalSymbols[2];
+        
+        const combination = finalSymbols.join('');
+        attemptsLeft--;
+        
+        const currentHour = new Date().getHours();
+        const currentWinners = hourlyWinners.get(currentHour) || 0;
+        
+        // Vérifier si c'est une combinaison gagnante et si c'est le bon moment
+        if (prizes[combination] && canWinNow()) {
+            elements.result.innerHTML = `<div class="win">${prizes[combination]}</div>`;
+            hourlyWinners.set(currentHour, currentWinners + 1);
+            localStorage.setItem('lastWin', new Date().toString());
+        } else {
+            // Si ce n'est pas le bon moment, forcer une combinaison perdante
+            elements.result.innerHTML = `<div class="lose">Bad luck! ${
+                attemptsLeft > 0 ? 'Try again!' : 'Come back tomorrow!'
+            }</div>`;
+        }
+        
+        updateAttemptsDisplay();
+        
+        if (attemptsLeft <= 0) {
+            localStorage.setItem('lastPlay', new Date().toString());
+            elements.leverButton.disabled = true;
+        } else {
+            elements.leverButton.disabled = false;
+        }
+    }
+
+    function resetHourlyWinners() {
+        const currentHour = new Date().getHours();
+        hourlyWinners.clear();
+        winningTimes.clear();
+        hourlyWinners.set(currentHour, 0);
+        winningTimes.set(currentHour, generateWinningTimes(currentHour));
+    }
+
+    // Réinitialiser toutes les heures
+    setInterval(resetHourlyWinners, 3600000); // 3600000 ms = 1 heure
+
+    // Initialize the game
+    checkLastPlay();
+    resetHourlyWinners();
+
+    // Les autres fonctions restent identiques...
+</script>
